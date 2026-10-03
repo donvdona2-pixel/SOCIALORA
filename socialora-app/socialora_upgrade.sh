@@ -1,0 +1,244 @@
+#!/usr/bin/env bash
+set -e
+cd /workspaces/SOCIALORA/socialora-app
+
+cp -f src/App.jsx src/App.pre-premium.jsx 2>/dev/null || true
+cp -f src/index.css src/index.pre-premium.css 2>/dev/null || true
+
+cat > src/App.jsx <<'EOF_APP'
+import { useEffect, useMemo, useState } from 'react'
+import { supabase } from './supabase'
+
+const NAV = [
+  ['dashboard','◈','Dashboard'],
+  ['growth','↗','Growth Center'],
+  ['studio','✦','AI Studio'],
+  ['content','▦','Content Planner'],
+  ['inbox','✉','Inbox'],
+  ['analytics','⌁','Analytics'],
+  ['points','◆','SOCIALORA Points'],
+  ['accounts','◎','Accounts'],
+  ['settings','⚙','Settings'],
+]
+
+function App() {
+  const [page, setPage] = useState('dashboard')
+  const [session, setSession] = useState(null)
+  const [ready, setReady] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [authMessage, setAuthMessage] = useState('')
+  const [region, setRegion] = useState('IL')
+  const [metaMessage, setMetaMessage] = useState('')
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session)
+      setReady(true)
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, next) => {
+      setSession(next)
+      setReady(true)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const title = useMemo(() => NAV.find(([id]) => id === page)?.[2] || 'Dashboard', [page])
+
+  const signIn = async (e) => {
+    e.preventDefault()
+    setAuthMessage('מתחבר...')
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+    setAuthMessage(error ? error.message : 'התחברת בהצלחה')
+  }
+
+  const connectMeta = async () => {
+    setMetaMessage('פותח חיבור מאובטח ל-Meta...')
+    const { data, error } = await supabase.functions.invoke('meta-oauth-start', { method: 'POST' })
+    if (error) return setMetaMessage(error.message)
+    const url = data?.authorizationUrl || data?.authUrl || data?.url
+    if (url) window.location.assign(url)
+    else setMetaMessage('השרת ענה, אבל צריך להתאים את תשובת meta-oauth-start ל-URL.')
+  }
+
+  if (!ready) return <div className="loading"><div>S</div><b>SOCIALORA</b><span>Loading...</span></div>
+
+  if (!session) {
+    return (
+      <main className="login">
+        <section className="login-brand">
+          <div className="logo">S</div>
+          <p className="eyebrow">SOCIAL MEDIA COMMAND CENTER</p>
+          <h1>Turn attention into <span>real growth.</span></h1>
+          <p>AI, תוכן, אנליטיקה, הודעות ותוכנית צמיחה — במקום אחד.</p>
+          <div className="features">
+            <div><b>01</b> AI Growth Plan</div><div><b>02</b> Unified Inbox</div>
+            <div><b>03</b> Content Engine</div><div><b>04</b> Smart Analytics</div>
+          </div>
+        </section>
+        <form className="login-card card" onSubmit={signIn}>
+          <p className="eyebrow">WELCOME BACK</p>
+          <h2>כניסה ל-SOCIALORA</h2>
+          <label>Email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required /></label>
+          <label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required /></label>
+          <button className="primary">כניסה למערכת</button>
+          {authMessage && <div className="message">{authMessage}</div>}
+        </form>
+      </main>
+    )
+  }
+
+  const Dashboard = () => (
+    <>
+      <section className="hero card">
+        <div>
+          <div className="demo">DEMO DATA · עד חיבור הרשתות</div>
+          <p className="eyebrow">TODAY'S GROWTH MISSION</p>
+          <h2>לא מעלים סתם תוכן. <span>בונים מומנטום.</span></h2>
+          <p>המערכת מרכזת מה כדאי לעשות היום כדי לשפר חשיפה, מעורבות, שיחות ולידים.</p>
+          <div className="actions">
+            <button className="primary" onClick={()=>setPage('growth')}>פתח תוכנית צמיחה</button>
+            <button className="secondary" onClick={()=>setPage('studio')}>✦ צור תוכן עם AI</button>
+          </div>
+        </div>
+        <div className="score"><b>82</b><small>/100<br/>Growth Score</small></div>
+      </section>
+
+      <section className="stats">
+        {[
+          ['◉','12,480','Total Followers','+8.4%'],
+          ['♡','6.8%','Engagement','+1.2%'],
+          ['✉','184','New Conversations','+14%'],
+          ['◆','1,280','SOCIALORA Points','+240'],
+        ].map(([i,v,l,d])=><article className="card stat" key={l}><div><span>{i}</span><em>{d}</em></div><b>{v}</b><small>{l}</small></article>)}
+      </section>
+
+      <section className="two">
+        <article className="card panel">
+          <header><div><p className="eyebrow">AI PRIORITIES</p><h3>3 פעולות שכדאי לבצע עכשיו</h3></div><i>AI READY</i></header>
+          <div className="tasks">
+            <button onClick={()=>setPage('studio')}><span>01</span><div><b>צור Reel קצר לערב</b><small>Hook חזק + מסר אחד + CTA</small></div><em>+80 pts</em></button>
+            <button onClick={()=>setPage('inbox')}><span>02</span><div><b>ענה לשיחות פתוחות</b><small>כל ההודעות במקום אחד</small></div><em>+45 pts</em></button>
+            <button onClick={()=>setPage('analytics')}><span>03</span><div><b>זהה את הפורמט המוביל</b><small>שמירות, שיתופים, צפייה ותגובות</small></div><em>+60 pts</em></button>
+          </div>
+        </article>
+        <article className="card panel">
+          <header><div><p className="eyebrow">MOMENTUM</p><h3>7 ימים אחרונים</h3></div><strong>+23.6%</strong></header>
+          <div className="bars">{[34,48,39,62,58,78,91].map((h,i)=><div key={i}><span style={{height:`${h}%`}} /></div>)}</div>
+        </article>
+      </section>
+    </>
+  )
+
+  const Growth = () => (
+    <section className="stack">
+      <div className="intro"><p className="eyebrow">GROWTH CENTER</p><h2>נתונים שהופכים ל-<span>פעולות.</span></h2><p>יעדים, ניסויים ושגרת עבודה שמכוונים לצמיחה אמיתית.</p></div>
+      <div className="three">
+        <article className="card panel"><h3>יעד 90 יום</h3><b className="huge">25,000 Followers</b><div className="progress"><span style={{width:'42%'}} /></div><small>42% מהיעד</small></article>
+        <article className="card panel"><p className="eyebrow">NEXT EXPERIMENT</p><h3>Hook A/B Test</h3><p>השווה שתי פתיחות לאותו Reel.</p><button className="primary small">צור ניסוי</button></article>
+        <article className="card panel"><p className="eyebrow">COMMUNITY SIGNAL</p><h3>תגובות עולות ↑</h3><p>נזהה מה גורם לקהל האמיתי להגיב ולשתף.</p><b className="green">+31%</b></article>
+      </div>
+    </section>
+  )
+
+  const Studio = () => (
+    <section className="studio">
+      <article className="card panel">
+        <p className="eyebrow">SOCIALORA AI STUDIO</p><h2>מרעיון לפוסט מוכן.</h2>
+        <p>כאן נחבר AI אמיתי ל-Hooks, Reels, Captions, Carousels ו-A/B tests.</p>
+        <textarea placeholder="תאר את העסק או התוכן שאתה רוצה ליצור..." />
+        <div className="chips">{['Reel Script','Caption','Carousel','Story','Ad Copy'].map(x=><button key={x}>{x}</button>)}</div>
+        <button className="primary">✦ Generate with SOCIALORA AI</button>
+      </article>
+      <aside className="card panel brief"><p className="eyebrow">SMART BRIEF</p><div><span>Market</span><b>{region==='IL'?'Israel 🇮🇱':'Global 🌍'}</b></div><div><span>Goal</span><b>Growth</b></div><div><span>Language</span><b>Hebrew</b></div></aside>
+    </section>
+  )
+
+  const Content = () => (
+    <section className="stack">
+      <div className="intro"><p className="eyebrow">CONTENT PLANNER</p><h2>שבוע שלם. <span>במבט אחד.</span></h2></div>
+      <div className="calendar card">{['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'].map((d,i)=><div key={d}><b>{d}</b><strong>{12+i}</strong>{i===0&&<span>19:30 · Reel</span>}{i===2&&<span>12:15 · Carousel</span>}{i===4&&<span>18:45 · Story</span>}</div>)}</div>
+    </section>
+  )
+
+  const Inbox = () => (
+    <section className="inbox card"><aside><div className="search">⌕ חיפוש שיחה</div><div className="empty"><b>✉</b><strong>אין עדיין שיחות Live</strong><p>שיחות אמיתיות יופיעו לאחר חיבור Meta.</p></div></aside><main><div className="empty"><b>💬</b><h3>Unified Inbox</h3><p>Facebook ו-Instagram במקום אחד.</p><button className="primary" onClick={()=>setPage('accounts')}>חבר חשבון</button></div></main></section>
+  )
+
+  const Analytics = () => (
+    <section className="stack">
+      <div className="demo">DEMO DATA · יחובר לנתונים אמיתיים</div>
+      <section className="stats">
+        {[
+          ['↗','84.2K','Reach','+18%'],['◉','9,304','Profile visits','+11%'],['♡','5,680','Interactions','+24%'],['✦','91','Content score','+7']
+        ].map(([i,v,l,d])=><article className="card stat" key={l}><div><span>{i}</span><em>{d}</em></div><b>{v}</b><small>{l}</small></article>)}
+      </section>
+      <article className="card panel"><p className="eyebrow">PERFORMANCE</p><h3>Reach & engagement</h3><div className="bars large">{[22,28,24,36,31,44,52,48,61,56,73,68,82,76,91].map((h,i)=><div key={i}><span style={{height:`${h}%`}} /></div>)}</div></article>
+    </section>
+  )
+
+  const Points = () => (
+    <section className="stack">
+      <article className="points card"><div><p className="eyebrow">SOCIALORA POINTS</p><h2>1,280 <span>◆</span></h2><p>צוברים נקודות על פעולות אמיתיות ומשתמשים בהן ל-AI, תבניות ואנליטיקה.</p></div><div className="level"><small>LEVEL</small><b>07</b><span>Creator Pro</span></div></article>
+      <div className="rewards">{[['✦','100 AI Credits','600 pts'],['▦','Premium Templates','450 pts'],['⌁','Analytics Week','800 pts'],['◎','Creator Match','950 pts']].map(([i,t,c])=><article className="card reward" key={t}><b>{i}</b><h3>{t}</h3><button>{c}</button></article>)}</div>
+    </section>
+  )
+
+  const Accounts = () => (
+    <section className="stack">
+      <article className="connect card"><div className="meta">∞</div><div><p className="eyebrow">META CONNECTION</p><h2>Facebook + Instagram</h2><p>OAuth מאובטח — בלי לבקש ממך סיסמת Facebook.</p></div><button className="primary" onClick={connectMeta}>Connect Meta</button></article>
+      {metaMessage && <div className="message">{metaMessage}</div>}
+      <article className="card panel empty"><b>◎</b><h3>עדיין אין חשבון מחובר</h3><p>לאחר OAuth מוצלח יוצגו כאן החשבונות האמיתיים.</p></article>
+    </section>
+  )
+
+  const Settings = () => (
+    <section className="three">
+      <article className="card panel"><p className="eyebrow">ACCOUNT</p><h3>{session.user.email}</h3><button className="secondary" onClick={()=>supabase.auth.signOut()}>Sign out</button></article>
+      <article className="card panel"><p className="eyebrow">REGION</p><h3>Target market</h3><div className="segmented"><button className={region==='IL'?'active':''} onClick={()=>setRegion('IL')}>🇮🇱 Israel</button><button className={region==='GLOBAL'?'active':''} onClick={()=>setRegion('GLOBAL')}>🌍 Global</button></div></article>
+      <article className="card panel"><p className="eyebrow">SECURITY</p><h3>Supabase Session</h3><b className="green">● Authenticated</b></article>
+    </section>
+  )
+
+  const render = () => ({dashboard:<Dashboard/>,growth:<Growth/>,studio:<Studio/>,content:<Content/>,inbox:<Inbox/>,analytics:<Analytics/>,points:<Points/>,accounts:<Accounts/>,settings:<Settings/>}[page])
+
+  return (
+    <div className="shell">
+      <aside className="sidebar">
+        <div className="brand"><div>S</div><span><b>SOCIALORA</b><small>COMMAND CENTER</small></span></div>
+        <nav>{NAV.map(([id,icon,label])=><button className={page===id?'active':''} key={id} onClick={()=>setPage(id)}><span>{icon}</span><b>{label}</b></button>)}</nav>
+        <div className="user"><div>{session.user.email?.[0]?.toUpperCase()}</div><span><b>{session.user.email}</b><small>Founder workspace</small></span></div>
+      </aside>
+      <main className="main">
+        <header className="topbar"><div><p className="eyebrow">SOCIALORA CONTROL CENTER</p><h1>{title}</h1></div><div className="top-actions"><div className="segmented"><button className={region==='IL'?'active':''} onClick={()=>setRegion('IL')}>IL</button><button className={region==='GLOBAL'?'active':''} onClick={()=>setRegion('GLOBAL')}>GLOBAL</button></div><button className="ai" onClick={()=>setPage('studio')}>✦ Ask SOCIALORA AI</button></div></header>
+        <div className="page">{render()}</div>
+      </main>
+    </div>
+  )
+}
+
+export default App
+
+EOF_APP
+
+cat > src/index.css <<'EOF_CSS'
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+:root{font-family:Inter,system-ui,sans-serif;color:#eef7ff;background:#02060d;--edge:rgba(74,163,255,.18);--muted:#7791ad;--blue:#149dff;--cyan:#49e8ff;--green:#58efbf}
+*{box-sizing:border-box}body{margin:0;min-width:320px;min-height:100vh;background:radial-gradient(circle at 88% 2%,rgba(9,91,205,.27),transparent 29%),#02060d}button,input,textarea{font:inherit}.card{background:linear-gradient(145deg,rgba(10,25,47,.94),rgba(4,12,25,.9));border:1px solid var(--edge);box-shadow:0 28px 70px rgba(0,0,0,.24);backdrop-filter:blur(18px)}.eyebrow{margin:0 0 7px;color:#61beff;font-size:11px;font-weight:800;letter-spacing:.15em}.primary,.secondary,.ai{border:0;cursor:pointer}.primary{padding:13px 18px;border-radius:13px;color:#fff;font-weight:800;background:linear-gradient(135deg,#0577ed,#19b8ff);box-shadow:0 13px 35px rgba(0,128,255,.23)}.primary.small{padding:10px 14px}.secondary{padding:12px 17px;border-radius:13px;color:#d5eaff;background:rgba(255,255,255,.025);border:1px solid rgba(130,190,255,.15)}.message,.demo{padding:9px 11px;border:1px solid rgba(75,173,255,.2);border-radius:10px;background:rgba(4,112,224,.08);color:#9ed5ff;font-size:11px}.demo{width:max-content;margin-bottom:16px}.loading{min-height:100vh;display:grid;place-items:center;align-content:center;gap:10px}.loading div,.logo{width:76px;height:76px;display:grid;place-items:center;border-radius:26px;background:linear-gradient(145deg,#16a9ff,#07152c);font-size:38px;font-weight:900;box-shadow:0 0 70px rgba(0,145,255,.35)}.loading span{color:var(--muted)}
+.login{min-height:100vh;display:grid;grid-template-columns:1.2fr .8fr;gap:70px;align-items:center;padding:70px max(6vw,32px)}.login-brand h1{margin:0;max-width:720px;font-size:clamp(48px,6vw,88px);line-height:.98;letter-spacing:-.06em}.login-brand h1 span,.hero h2 span,.intro h2 span{color:transparent;background:linear-gradient(90deg,#249cff,#58edff);-webkit-background-clip:text;background-clip:text}.login-brand>p:last-of-type{max-width:620px;color:#8da6c1;font-size:17px;line-height:1.7}.features{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:600px}.features div{padding:13px;border-bottom:1px solid rgba(87,173,255,.09);color:#9cb4cb}.features b{color:#2aa8ff;margin-right:10px}.login-card{padding:30px;border-radius:27px}.login-card h2{margin:0 0 20px}.login-card label{display:grid;gap:8px;margin:15px 0;color:#a9bfd4;font-size:12px;font-weight:700}.login-card input{height:48px;padding:0 14px;border-radius:13px;border:1px solid rgba(109,177,244,.18);background:#010812;color:#fff}.login-card .primary{width:100%;margin-top:6px}
+.shell{min-height:100vh;display:grid;grid-template-columns:252px 1fr}.sidebar{height:100vh;position:sticky;top:0;padding:24px 16px 18px;display:flex;flex-direction:column;background:rgba(2,8,17,.94);border-right:1px solid rgba(71,157,255,.12)}.brand{display:flex;align-items:center;gap:11px;padding:0 8px 23px}.brand>div{width:42px;height:42px;display:grid;place-items:center;border-radius:14px;background:linear-gradient(145deg,#139fff,#05152a);font-size:21px;font-weight:900}.brand span b{display:block;letter-spacing:.08em}.brand span small{color:#49617b;font-size:8px;letter-spacing:.17em}.sidebar nav{display:grid;gap:4px}.sidebar nav button{min-height:46px;display:grid;grid-template-columns:26px 1fr;align-items:center;border:1px solid transparent;border-radius:12px;padding:0 12px;background:transparent;color:#6f89a4;text-align:left;cursor:pointer}.sidebar nav button.active{color:#fff;border-color:rgba(42,152,255,.24);background:linear-gradient(90deg,rgba(13,99,196,.24),rgba(5,39,82,.1));box-shadow:inset 3px 0 #1598ff}.sidebar nav button b{font-size:12px}.user{margin-top:auto;padding-top:18px;border-top:1px solid rgba(100,155,215,.08);display:flex;gap:9px;align-items:center}.user>div{width:35px;height:35px;display:grid;place-items:center;border-radius:12px;background:#082957;color:#5bc8ff;font-weight:800}.user span{min-width:0}.user span b{display:block;max-width:145px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px}.user small{color:#405972;font-size:9px}.main{min-width:0}.topbar{min-height:91px;display:flex;align-items:center;justify-content:space-between;padding:19px 31px;border-bottom:1px solid rgba(72,149,229,.09);background:rgba(2,7,15,.68);position:sticky;top:0;z-index:20;backdrop-filter:blur(18px)}.topbar h1{margin:0;font-size:24px}.top-actions{display:flex;gap:9px;align-items:center}.ai{height:39px;padding:0 13px;border:1px solid rgba(61,168,255,.2);border-radius:11px;background:rgba(14,82,156,.11);color:#86d5ff;font-size:11px;font-weight:700}.page{padding:28px 31px 46px;max-width:1540px;margin:auto}
+.hero{min-height:280px;display:grid;grid-template-columns:1fr auto;align-items:center;gap:44px;padding:34px 40px;border-radius:25px}.hero h2,.intro h2,.studio h2{margin:0;font-size:clamp(30px,4vw,48px);line-height:1.08;letter-spacing:-.05em}.hero p,.intro p,.studio p,.panel p,.connect p,.points p{color:var(--muted);line-height:1.7}.actions{display:flex;gap:10px;margin-top:22px}.score{width:166px;height:166px;display:grid;place-items:center;align-content:center;border-radius:50%;background:radial-gradient(circle at center,#061529 61%,transparent 62%),conic-gradient(#41e8ff 0 82%,rgba(47,125,202,.14) 82%)}.score b{font-size:47px}.score small{color:#70a2cc;text-align:center}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-top:14px}.stat{min-height:132px;padding:18px;border-radius:18px;display:grid;align-content:space-between}.stat>div{display:flex;justify-content:space-between}.stat>div span{color:#41c6ff}.stat em{color:var(--green);font-size:10px;font-style:normal}.stat>b{font-size:27px}.stat>small{color:#718ca8}.two,.three,.studio,.settings{display:grid;gap:14px;margin-top:14px}.two{grid-template-columns:1.35fr .65fr}.three{grid-template-columns:repeat(3,1fr)}.studio{grid-template-columns:1fr 285px}.panel{padding:22px;border-radius:21px}.panel header{display:flex;justify-content:space-between;gap:20px;margin-bottom:17px}.panel header h3,.panel h3{margin:0}.panel header i{font-style:normal;font-size:8px;color:#4cc6ff}.panel header>strong,.green{color:var(--green)}.tasks button{width:100%;display:grid;grid-template-columns:38px 1fr auto;gap:12px;align-items:center;padding:14px 5px;border:0;border-bottom:1px solid rgba(93,158,222,.08);background:transparent;color:#fff;text-align:left;cursor:pointer}.tasks button>span{color:#3fbfff;font-size:10px}.tasks b{display:block;font-size:12px}.tasks small{display:block;color:#58718b;font-size:9px}.tasks em{color:var(--green);font-style:normal;font-size:9px}.bars{height:140px;display:flex;align-items:end;gap:8px}.bars.large{height:220px}.bars>div{height:100%;flex:1;display:flex;align-items:end}.bars span{width:100%;border-radius:5px 5px 2px 2px;background:linear-gradient(#43d9ff,#0875de 60%,rgba(3,79,156,.32))}.stack{display:grid;gap:14px}.huge{display:block;font-size:30px;margin:20px 0}.progress{height:7px;background:#07162a;border-radius:999px;overflow:hidden}.progress span{display:block;height:100%;background:linear-gradient(90deg,#0578ec,#43e4ff)}textarea{width:100%;min-height:160px;padding:14px;margin:16px 0;border-radius:13px;border:1px solid rgba(109,177,244,.18);background:#010812;color:#fff}.chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px}.chips button,.reward button{border:1px solid rgba(75,165,250,.13);background:#04182e;color:#7595b2;border-radius:999px;padding:7px 11px}.brief>div{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(80,150,210,.07)}.brief span{color:#55718d;font-size:9px}.calendar{display:grid;grid-template-columns:repeat(7,1fr);min-height:350px;border-radius:21px;overflow:hidden}.calendar>div{padding:14px;border-right:1px solid rgba(75,150,220,.09)}.calendar strong{display:block;margin-top:7px;font-size:20px}.calendar span{display:block;margin-top:34px;padding:9px;border:1px solid rgba(37,153,255,.24);border-radius:9px;color:#8bcfff;background:rgba(7,113,219,.16);font-size:8px}.inbox{min-height:610px;display:grid;grid-template-columns:320px 1fr;border-radius:21px;overflow:hidden}.inbox aside{padding:16px;border-right:1px solid rgba(79,160,235,.1)}.search{padding:12px;border-radius:10px;background:#041020;color:#4b6681}.inbox main{display:grid;place-items:center}.empty{display:grid;place-items:center;align-content:center;text-align:center;min-height:250px}.empty>b{font-size:38px;color:#1d8eea}.empty p{color:#536f8a}.points{display:flex;align-items:center;justify-content:space-between;gap:30px;padding:33px;border-radius:23px}.points h2{font-size:56px;margin:5px 0}.points h2 span{color:#45dfff}.level{width:135px;height:135px;display:grid;place-items:center;align-content:center;border-radius:50%;border:1px solid rgba(72,211,255,.28)}.level b{font-size:34px;color:#52dfff}.level small,.level span{color:#5c7a96}.rewards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.reward{padding:19px;border-radius:18px}.reward>b{font-size:26px;color:#44d6ff}.connect{display:grid;grid-template-columns:70px 1fr auto;gap:20px;align-items:center;padding:27px;border-radius:21px}.meta{width:62px;height:62px;display:grid;place-items:center;border-radius:20px;background:linear-gradient(145deg,#086ce2,#0bbcf5);font-size:35px;font-weight:900}.segmented{display:inline-flex;padding:3px;border-radius:11px;background:rgba(0,0,0,.28);border:1px solid rgba(80,160,230,.12)}.segmented button{border:0;background:transparent;color:#607e9c;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:9px;font-weight:750}.segmented button.active{color:#fff;background:#0a5fb5}
+@media(max-width:1050px){.shell{grid-template-columns:78px 1fr}.brand span,.sidebar nav button b,.user span{display:none}.sidebar nav button{grid-template-columns:1fr;place-items:center}.user{justify-content:center}.three{grid-template-columns:1fr 1fr}.rewards{grid-template-columns:1fr 1fr}}
+@media(max-width:800px){.shell{display:block}.sidebar{height:auto;position:fixed;left:0;right:0;bottom:0;top:auto;z-index:40;padding:8px}.sidebar .brand,.user{display:none}.sidebar nav{display:flex;overflow-x:auto}.sidebar nav button{flex:0 0 54px}.main{padding-bottom:70px}.page{padding:18px 14px}.topbar{padding:14px 16px}.ai{display:none}.hero,.two,.three,.studio{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}.calendar{overflow-x:auto;grid-template-columns:repeat(7,130px)}.inbox{grid-template-columns:1fr}.login{grid-template-columns:1fr;padding:40px 20px}.login-brand h1{font-size:52px}.features{grid-template-columns:1fr}.connect{grid-template-columns:58px 1fr}.connect .primary{grid-column:1/-1}}
+@media(max-width:520px){.stats,.rewards{grid-template-columns:1fr}.actions{flex-direction:column}.points{align-items:flex-start}.points h2{font-size:42px}.level{width:105px;height:105px}}
+
+EOF_CSS
+
+echo "🔎 Building SOCIALORA..."
+npm run build
+
+echo ""
+echo "✅ SOCIALORA Premium V1 installed"
+echo "▶ Next command: npm run dev"
