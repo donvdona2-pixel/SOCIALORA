@@ -1,344 +1,215 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase'
 
+const NAV = [
+  ['dashboard','◈','Dashboard'],
+  ['growth','↗','Growth Center'],
+  ['studio','✦','AI Studio'],
+  ['content','▦','Content Planner'],
+  ['inbox','✉','Inbox'],
+  ['analytics','⌁','Analytics'],
+  ['points','◆','SOCIALORA Points'],
+  ['accounts','◎','Accounts'],
+  ['settings','⚙','Settings'],
+]
+
 function App() {
-  const [activePage, setActivePage] = useState('dashboard')
-const [session, setSession] = useState(null)
-const [email, setEmail] = useState('')
-const [password, setPassword] = useState('')
-const [authMessage, setAuthMessage] = useState('')
+  const [page, setPage] = useState('dashboard')
+  const [session, setSession] = useState(null)
+  const [ready, setReady] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [authMessage, setAuthMessage] = useState('')
+  const [region, setRegion] = useState('IL')
+  const [metaMessage, setMetaMessage] = useState('')
 
-useEffect(() => {
-  supabase.auth.getSession().then(({ data }) => {
-    setSession(data.session)
-  })
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session)
+      setReady(true)
+    })
 
-  const {
-    data: { subscription },
-  } = supabase.auth.onAuthStateChange((_event, newSession) => {
-    setSession(newSession)
-  })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, next) => {
+      setSession(next)
+      setReady(true)
+    })
 
-  return () => subscription.unsubscribe()
-}, [])
-const signIn = async () => {
-  setAuthMessage('מתחבר...')
+    return () => subscription.unsubscribe()
+  }, [])
 
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  })
+  const title = useMemo(() => NAV.find(([id]) => id === page)?.[2] || 'Dashboard', [page])
 
-  if (error) {
-    setAuthMessage(error.message)
-    return
+  const signIn = async (e) => {
+    e.preventDefault()
+    setAuthMessage('מתחבר...')
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+    setAuthMessage(error ? error.message : 'התחברת בהצלחה')
   }
 
-  setAuthMessage('התחברת בהצלחה')
-}
-  setAuthMessage('מתחבר...')
-
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  })
-
-  if (error) {
-    setAuthMessage('התחברת בהצלחה')
-}
-    setAuthMessage(error.message)
-    return
+  const connectMeta = async () => {
+    setMetaMessage('פותח חיבור מאובטח ל-Meta...')
+    const { data, error } = await supabase.functions.invoke('meta-oauth-start', { method: 'POST' })
+    if (error) return setMetaMessage(error.message)
+    const url = data?.authorizationUrl || data?.authUrl || data?.url
+    if (url) window.location.assign(url)
+    else setMetaMessage('השרת ענה, אבל צריך להתאים את תשובת meta-oauth-start ל-URL.')
   }
 
-  setAuthMessage('התחברת בהצלחה')
-}
-  const navItem = (id, icon, label) => (
-    <button
-      onClick={() => setActivePage(id)}
-      style={{
-        width: '100%',
-        padding: '14px 16px',
-        marginBottom: '8px',
-        borderRadius: '14px',
-        border:
-          activePage === id
-            ? '1px solid #158cff'
-            : '1px solid transparent',
-        background:
-          activePage === id
-            ? 'linear-gradient(135deg,#092f61,#075da8)'
-            : 'transparent',
-        color: '#fff',
-        cursor: 'pointer',
-        textAlign: 'left',
-        fontSize: '15px',
-        fontWeight: '700',
-      }}
-    >
-      {icon} &nbsp; {label}
-    </button>
+  if (!ready) return <div className="loading"><div>S</div><b>SOCIALORA</b><span>Loading...</span></div>
+
+  if (!session) {
+    return (
+      <main className="login">
+        <section className="login-brand">
+          <div className="logo">S</div>
+          <p className="eyebrow">SOCIAL MEDIA COMMAND CENTER</p>
+          <h1>Turn attention into <span>real growth.</span></h1>
+          <p>AI, תוכן, אנליטיקה, הודעות ותוכנית צמיחה — במקום אחד.</p>
+          <div className="features">
+            <div><b>01</b> AI Growth Plan</div><div><b>02</b> Unified Inbox</div>
+            <div><b>03</b> Content Engine</div><div><b>04</b> Smart Analytics</div>
+          </div>
+        </section>
+        <form className="login-card card" onSubmit={signIn}>
+          <p className="eyebrow">WELCOME BACK</p>
+          <h2>כניסה ל-SOCIALORA</h2>
+          <label>Email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required /></label>
+          <label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required /></label>
+          <button className="primary">כניסה למערכת</button>
+          {authMessage && <div className="message">{authMessage}</div>}
+        </form>
+      </main>
+    )
+  }
+
+  const Dashboard = () => (
+    <>
+      <section className="hero card">
+        <div>
+          <div className="demo">DEMO DATA · עד חיבור הרשתות</div>
+          <p className="eyebrow">TODAY'S GROWTH MISSION</p>
+          <h2>לא מעלים סתם תוכן. <span>בונים מומנטום.</span></h2>
+          <p>המערכת מרכזת מה כדאי לעשות היום כדי לשפר חשיפה, מעורבות, שיחות ולידים.</p>
+          <div className="actions">
+            <button className="primary" onClick={()=>setPage('growth')}>פתח תוכנית צמיחה</button>
+            <button className="secondary" onClick={()=>setPage('studio')}>✦ צור תוכן עם AI</button>
+          </div>
+        </div>
+        <div className="score"><b>82</b><small>/100<br/>Growth Score</small></div>
+      </section>
+
+      <section className="stats">
+        {[
+          ['◉','12,480','Total Followers','+8.4%'],
+          ['♡','6.8%','Engagement','+1.2%'],
+          ['✉','184','New Conversations','+14%'],
+          ['◆','1,280','SOCIALORA Points','+240'],
+        ].map(([i,v,l,d])=><article className="card stat" key={l}><div><span>{i}</span><em>{d}</em></div><b>{v}</b><small>{l}</small></article>)}
+      </section>
+
+      <section className="two">
+        <article className="card panel">
+          <header><div><p className="eyebrow">AI PRIORITIES</p><h3>3 פעולות שכדאי לבצע עכשיו</h3></div><i>AI READY</i></header>
+          <div className="tasks">
+            <button onClick={()=>setPage('studio')}><span>01</span><div><b>צור Reel קצר לערב</b><small>Hook חזק + מסר אחד + CTA</small></div><em>+80 pts</em></button>
+            <button onClick={()=>setPage('inbox')}><span>02</span><div><b>ענה לשיחות פתוחות</b><small>כל ההודעות במקום אחד</small></div><em>+45 pts</em></button>
+            <button onClick={()=>setPage('analytics')}><span>03</span><div><b>זהה את הפורמט המוביל</b><small>שמירות, שיתופים, צפייה ותגובות</small></div><em>+60 pts</em></button>
+          </div>
+        </article>
+        <article className="card panel">
+          <header><div><p className="eyebrow">MOMENTUM</p><h3>7 ימים אחרונים</h3></div><strong>+23.6%</strong></header>
+          <div className="bars">{[34,48,39,62,58,78,91].map((h,i)=><div key={i}><span style={{height:`${h}%`}} /></div>)}</div>
+        </article>
+      </section>
+    </>
   )
 
+  const Growth = () => (
+    <section className="stack">
+      <div className="intro"><p className="eyebrow">GROWTH CENTER</p><h2>נתונים שהופכים ל-<span>פעולות.</span></h2><p>יעדים, ניסויים ושגרת עבודה שמכוונים לצמיחה אמיתית.</p></div>
+      <div className="three">
+        <article className="card panel"><h3>יעד 90 יום</h3><b className="huge">25,000 Followers</b><div className="progress"><span style={{width:'42%'}} /></div><small>42% מהיעד</small></article>
+        <article className="card panel"><p className="eyebrow">NEXT EXPERIMENT</p><h3>Hook A/B Test</h3><p>השווה שתי פתיחות לאותו Reel.</p><button className="primary small">צור ניסוי</button></article>
+        <article className="card panel"><p className="eyebrow">COMMUNITY SIGNAL</p><h3>תגובות עולות ↑</h3><p>נזהה מה גורם לקהל האמיתי להגיב ולשתף.</p><b className="green">+31%</b></article>
+      </div>
+    </section>
+  )
+
+  const Studio = () => (
+    <section className="studio">
+      <article className="card panel">
+        <p className="eyebrow">SOCIALORA AI STUDIO</p><h2>מרעיון לפוסט מוכן.</h2>
+        <p>כאן נחבר AI אמיתי ל-Hooks, Reels, Captions, Carousels ו-A/B tests.</p>
+        <textarea placeholder="תאר את העסק או התוכן שאתה רוצה ליצור..." />
+        <div className="chips">{['Reel Script','Caption','Carousel','Story','Ad Copy'].map(x=><button key={x}>{x}</button>)}</div>
+        <button className="primary">✦ Generate with SOCIALORA AI</button>
+      </article>
+      <aside className="card panel brief"><p className="eyebrow">SMART BRIEF</p><div><span>Market</span><b>{region==='IL'?'Israel 🇮🇱':'Global 🌍'}</b></div><div><span>Goal</span><b>Growth</b></div><div><span>Language</span><b>Hebrew</b></div></aside>
+    </section>
+  )
+
+  const Content = () => (
+    <section className="stack">
+      <div className="intro"><p className="eyebrow">CONTENT PLANNER</p><h2>שבוע שלם. <span>במבט אחד.</span></h2></div>
+      <div className="calendar card">{['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'].map((d,i)=><div key={d}><b>{d}</b><strong>{12+i}</strong>{i===0&&<span>19:30 · Reel</span>}{i===2&&<span>12:15 · Carousel</span>}{i===4&&<span>18:45 · Story</span>}</div>)}</div>
+    </section>
+  )
+
+  const Inbox = () => (
+    <section className="inbox card"><aside><div className="search">⌕ חיפוש שיחה</div><div className="empty"><b>✉</b><strong>אין עדיין שיחות Live</strong><p>שיחות אמיתיות יופיעו לאחר חיבור Meta.</p></div></aside><main><div className="empty"><b>💬</b><h3>Unified Inbox</h3><p>Facebook ו-Instagram במקום אחד.</p><button className="primary" onClick={()=>setPage('accounts')}>חבר חשבון</button></div></main></section>
+  )
+
+  const Analytics = () => (
+    <section className="stack">
+      <div className="demo">DEMO DATA · יחובר לנתונים אמיתיים</div>
+      <section className="stats">
+        {[
+          ['↗','84.2K','Reach','+18%'],['◉','9,304','Profile visits','+11%'],['♡','5,680','Interactions','+24%'],['✦','91','Content score','+7']
+        ].map(([i,v,l,d])=><article className="card stat" key={l}><div><span>{i}</span><em>{d}</em></div><b>{v}</b><small>{l}</small></article>)}
+      </section>
+      <article className="card panel"><p className="eyebrow">PERFORMANCE</p><h3>Reach & engagement</h3><div className="bars large">{[22,28,24,36,31,44,52,48,61,56,73,68,82,76,91].map((h,i)=><div key={i}><span style={{height:`${h}%`}} /></div>)}</div></article>
+    </section>
+  )
+
+  const Points = () => (
+    <section className="stack">
+      <article className="points card"><div><p className="eyebrow">SOCIALORA POINTS</p><h2>1,280 <span>◆</span></h2><p>צוברים נקודות על פעולות אמיתיות ומשתמשים בהן ל-AI, תבניות ואנליטיקה.</p></div><div className="level"><small>LEVEL</small><b>07</b><span>Creator Pro</span></div></article>
+      <div className="rewards">{[['✦','100 AI Credits','600 pts'],['▦','Premium Templates','450 pts'],['⌁','Analytics Week','800 pts'],['◎','Creator Match','950 pts']].map(([i,t,c])=><article className="card reward" key={t}><b>{i}</b><h3>{t}</h3><button>{c}</button></article>)}</div>
+    </section>
+  )
+
+  const Accounts = () => (
+    <section className="stack">
+      <article className="connect card"><div className="meta">∞</div><div><p className="eyebrow">META CONNECTION</p><h2>Facebook + Instagram</h2><p>OAuth מאובטח — בלי לבקש ממך סיסמת Facebook.</p></div><button className="primary" onClick={connectMeta}>Connect Meta</button></article>
+      {metaMessage && <div className="message">{metaMessage}</div>}
+      <article className="card panel empty"><b>◎</b><h3>עדיין אין חשבון מחובר</h3><p>לאחר OAuth מוצלח יוצגו כאן החשבונות האמיתיים.</p></article>
+    </section>
+  )
+
+  const Settings = () => (
+    <section className="three">
+      <article className="card panel"><p className="eyebrow">ACCOUNT</p><h3>{session.user.email}</h3><button className="secondary" onClick={()=>supabase.auth.signOut()}>Sign out</button></article>
+      <article className="card panel"><p className="eyebrow">REGION</p><h3>Target market</h3><div className="segmented"><button className={region==='IL'?'active':''} onClick={()=>setRegion('IL')}>🇮🇱 Israel</button><button className={region==='GLOBAL'?'active':''} onClick={()=>setRegion('GLOBAL')}>🌍 Global</button></div></article>
+      <article className="card panel"><p className="eyebrow">SECURITY</p><h3>Supabase Session</h3><b className="green">● Authenticated</b></article>
+    </section>
+  )
+
+  const render = () => ({dashboard:<Dashboard/>,growth:<Growth/>,studio:<Studio/>,content:<Content/>,inbox:<Inbox/>,analytics:<Analytics/>,points:<Points/>,accounts:<Accounts/>,settings:<Settings/>}[page])
+
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background:
-          'radial-gradient(circle at top right,#07366d 0%,#020b19 35%,#000 85%)',
-        color: '#fff',
-        fontFamily: 'Arial, sans-serif',
-        display: 'flex',
-      }}
-    >
-      <aside
-        style={{
-          width: '240px',
-          padding: '26px 20px',
-          background: 'rgba(2,9,20,.92)',
-          borderRight: '1px solid rgba(0,140,255,.2)',
-        }}
-      >
-        <div
-          style={{
-            fontSize: '28px',
-            fontWeight: '900',
-            letterSpacing: '2px',
-            color: '#19a7ff',
-            marginBottom: '8px',
-          }}
-        >
-          SOCIALORA
-        </div>
-
-        <div
-          style={{
-            fontSize: '12px',
-            color: '#6383a7',
-            marginBottom: '34px',
-          }}
-        >
-          SOCIAL MEDIA COMMAND CENTER
-        </div>
-
-        {navItem('dashboard', '◈', 'Dashboard')}
-        {navItem('inbox', '✉', 'Inbox')}
-        {navItem('accounts', '◎', 'Accounts')}
-        {navItem('settings', '⚙', 'Settings')}
+    <div className="shell">
+      <aside className="sidebar">
+        <div className="brand"><div>S</div><span><b>SOCIALORA</b><small>COMMAND CENTER</small></span></div>
+        <nav>{NAV.map(([id,icon,label])=><button className={page===id?'active':''} key={id} onClick={()=>setPage(id)}><span>{icon}</span><b>{label}</b></button>)}</nav>
+        <div className="user"><div>{session.user.email?.[0]?.toUpperCase()}</div><span><b>{session.user.email}</b><small>Founder workspace</small></span></div>
       </aside>
-
-      <main
-        style={{
-          flex: 1,
-          padding: '34px',
-        }}
-      >
-        <header
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '34px',
-          }}
-        >
-          <div>
-            <div
-              style={{
-                fontSize: '13px',
-                color: '#6584a9',
-              }}
-            >
-              SOCIALORA CONTROL CENTER
-            </div>
-
-            <h1
-              style={{
-                margin: '6px 0 0',
-                fontSize: '36px',
-              }}
-            >
-              {activePage === 'dashboard' && 'Dashboard'}
-              {activePage === 'inbox' && 'Inbox'}
-              {activePage === 'accounts' && 'Connected Accounts'}
-              {activePage === 'settings' && 'Settings'}
-            </h1>
-          </div>
-
-          <div
-            style={{
-              padding: '8px 14px',
-              borderRadius: '999px',
-              border: '1px solid rgba(0,160,255,.35)',
-              background: 'rgba(0,120,255,.1)',
-              color: '#51b8ff',
-              fontSize: '13px',
-            }}
-          >
-            ● Meta Integration
-          </div>
-        </header>
-
-        {activePage === 'dashboard' && (
-          <>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns:
-                  'repeat(auto-fit,minmax(220px,1fr))',
-                gap: '18px',
-              }}
-            >
-              {[
-                ['Connected Accounts', '0'],
-                ['Active Conversations', '0'],
-                ['Messages Today', '0'],
-                ['Response Rate', '—'],
-              ].map(([title, value]) => (
-                <div
-                  key={title}
-                  style={{
-                    background:
-                      'linear-gradient(145deg,#0a1b35,#041020)',
-                    border: '1px solid rgba(50,150,255,.18)',
-                    borderRadius: '22px',
-                    padding: '22px',
-                    boxShadow: '0 20px 60px rgba(0,0,0,.35)',
-                  }}
-                >
-                  <div
-                    style={{
-                      color: '#7492b7',
-                      fontSize: '14px',
-                    }}
-                  >
-                    {title}
-                  </div>
-
-                  <div
-                    style={{
-                      fontSize: '38px',
-                      fontWeight: '900',
-                      marginTop: '10px',
-                    }}
-                  >
-                    {value}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div
-              style={{
-                marginTop: '22px',
-                background:
-                  'linear-gradient(145deg,#091a33,#030d1c)',
-                border: '1px solid rgba(50,150,255,.2)',
-                borderRadius: '24px',
-                padding: '28px',
-              }}
-            >
-              <div
-                style={{
-                  color: '#23a9ff',
-                  fontWeight: '800',
-                  marginBottom: '8px',
-                }}
-              >
-                FACEBOOK CONNECTION
-              </div>
-
-              <h2 style={{ marginTop: 0 }}>
-                Connect your Facebook Page
-              </h2>
-
-              <p
-                style={{
-                  color: '#7892b2',
-                  maxWidth: '650px',
-                  lineHeight: '1.7',
-                }}
-              >
-                Connect an authorized Facebook Page to bring customer
-                conversations into the SOCIALORA inbox.
-              </p>
-
-              <button
-              onClick={() => {
-  window.location.href =
-    'https://avtninmjzlyllttwwuwl.supabase.co/functions/v1/meta-oauth-start'
-}}
-                style={{
-                  marginTop: '10px',
-                  padding: '14px 20px',
-                  border: 0,
-                  borderRadius: '14px',
-                  color: '#fff',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                  background:
-                    'linear-gradient(135deg,#087cf0,#21b7ff)',
-                  boxShadow:
-                    '0 10px 35px rgba(0,130,255,.3)',
-                }}
-              >
-                Connect Facebook Page
-              </button>
-            </div>
-          </>
-        )}
-
-        {activePage === 'inbox' && (
-          <div
-            style={{
-              background:
-                'linear-gradient(145deg,#091a33,#030d1c)',
-              border: '1px solid rgba(50,150,255,.2)',
-              borderRadius: '24px',
-              padding: '36px',
-            }}
-          >
-            <div style={{ fontSize: '50px' }}>💬</div>
-            <h2>Your inbox is ready</h2>
-            <p style={{ color: '#7892b2' }}>
-              Conversations from connected Facebook Pages will appear
-              here.
-            </p>
-          </div>
-        )}
-
-        {activePage === 'accounts' && (
-          <div
-            style={{
-              background: '#061426',
-              border: '1px solid rgba(50,150,255,.2)',
-              borderRadius: '24px',
-              padding: '30px',
-            }}
-          >
-            <h2>Connected Accounts</h2>
-            <p style={{ color: '#7892b2' }}>
-              No Facebook Pages connected yet.
-            </p>
-          </div>
-        )}
-
-        {activePage === 'settings' && (
-          <div
-            style={{
-              background: '#061426',
-              border: '1px solid rgba(50,150,255,.2)',
-              borderRadius: '24px',
-              padding: '30px',
-            }}
-          >
-            <h2>Settings</h2>
-            <p style={{ color: '#7892b2' }}>
-              SOCIALORA configuration will appear here.
-            </p>
-          </div>
-        )}
+      <main className="main">
+        <header className="topbar"><div><p className="eyebrow">SOCIALORA CONTROL CENTER</p><h1>{title}</h1></div><div className="top-actions"><div className="segmented"><button className={region==='IL'?'active':''} onClick={()=>setRegion('IL')}>IL</button><button className={region==='GLOBAL'?'active':''} onClick={()=>setRegion('GLOBAL')}>GLOBAL</button></div><button className="ai" onClick={()=>setPage('studio')}>✦ Ask SOCIALORA AI</button></div></header>
+        <div className="page">{render()}</div>
       </main>
     </div>
   )
 }
 
 export default App
+
