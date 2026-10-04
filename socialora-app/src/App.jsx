@@ -132,55 +132,36 @@ function App() {
 
 
 
-      const { data, error } = await supabase
-
-        .from('meta_connections')
-
-        .select('meta_user_id, meta_name, connected_at, updated_at')
-
-        .eq('user_id', session.user.id)
-
-        .maybeSingle()
-
-
+      const { data, error } = await supabase.functions.invoke(
+        'meta-status',
+        { method: 'GET' }
+      )
 
       if (cancelled) return
 
-
-
-      if (!error && data) {
-
-        setMetaConnection(data)
-
-        window.localStorage.setItem(storageKey, '1')
-
+      if (!error && data?.ok) {
+        if (data.connected && data.connection) {
+          setMetaConnection(data.connection)
+          window.localStorage.setItem(storageKey, '1')
+        } else {
+          setMetaConnection(null)
+          window.localStorage.removeItem(storageKey)
+        }
       } else if (oauthStatus === 'connected' || rememberedConnected) {
-
         setMetaConnection({
-
           meta_name: 'Meta account',
-
           meta_user_id: null,
-
           connected_at: null,
-
           localFallback: true,
-
         })
-
       } else {
-
         setMetaConnection(null)
 
-        if (error) {
-
-          console.error('SOCIALORA meta connection status failed:', error)
-
-        }
-
+        console.error(
+          'SOCIALORA meta-status failed:',
+          error || data
+        )
       }
-
-
 
       setMetaLoading(false)
 
