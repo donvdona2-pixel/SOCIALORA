@@ -50,12 +50,6 @@ function App() {
 
   const [metaLoading, setMetaLoading] = useState(false)
 
-  const [metaAssets, setMetaAssets] = useState([])
-
-  const [assetsLoading, setAssetsLoading] = useState(false)
-
-  const [assetsMessage, setAssetsMessage] = useState('')
-
 
 
   useEffect(() => {
@@ -213,55 +207,6 @@ function App() {
 
 
 
-  const loadMetaAssets = async () => {
-
-    if (!metaConnection) {
-      setMetaAssets([])
-      return
-    }
-
-    setAssetsLoading(true)
-    setAssetsMessage('טוען את דפי Facebook וחשבון Instagram...')
-
-    const { data, error } = await supabase.functions.invoke(
-      'meta-assets',
-      { method: 'GET' }
-    )
-
-    if (error || !data?.ok) {
-      console.error('SOCIALORA meta-assets failed:', error || data)
-      setMetaAssets([])
-      setAssetsMessage(
-        data?.details ||
-        error?.message ||
-        'לא הצלחנו לקרוא את הנכסים מ-Meta.'
-      )
-    } else {
-      setMetaAssets(data.pages || [])
-      setAssetsMessage(
-        (data.pages || []).length
-          ? 'הנכסים האמיתיים של Meta נטענו בהצלחה ✅'
-          : 'החיבור פעיל, אבל Meta לא החזירה עדיין דף Facebook מנוהל.'
-      )
-    }
-
-    setAssetsLoading(false)
-  }
-
-  useEffect(() => {
-    if (metaConnection) {
-      loadMetaAssets()
-    } else {
-      setMetaAssets([])
-      setAssetsMessage('')
-    }
-  }, [metaConnection?.meta_user_id, metaConnection?.connected_at])
-
-  const connectedInstagram = useMemo(
-    () => metaAssets.find(page => page.instagram)?.instagram || null,
-    [metaAssets]
-  )
-
   const title = useMemo(() => NAV.find(([id]) => id === page)?.[2] || 'Dashboard', [page])
 
 
@@ -360,7 +305,7 @@ function App() {
 
         <div>
 
-          <div className="demo">{connectedInstagram ? 'INSTAGRAM LIVE · חלק מהנתונים כבר אמיתיים' : metaConnection ? 'META CONNECTED · נתוני הביצועים עדיין DEMO' : 'DEMO DATA · עד חיבור הרשתות'}</div>
+          <div className="demo">{metaConnection ? 'META CONNECTED · נתוני הביצועים עדיין DEMO' : 'DEMO DATA · עד חיבור הרשתות'}</div>
 
           <p className="eyebrow">TODAY'S GROWTH MISSION</p>
 
@@ -388,7 +333,7 @@ function App() {
 
         {[
 
-          ['◉',connectedInstagram?.followers_count != null ? connectedInstagram.followers_count.toLocaleString() : '12,480',connectedInstagram ? 'Instagram Followers' : 'Total Followers',connectedInstagram ? 'LIVE' : '+8.4%'],
+          ['◉','12,480','Total Followers','+8.4%'],
 
           ['♡','6.8%','Engagement','+1.2%'],
 
@@ -578,51 +523,6 @@ function App() {
 
         <article className="card panel empty"><b>◎</b><h3>עדיין אין חשבון מחובר</h3><p>לאחר OAuth מוצלח יוצגו כאן החשבונות האמיתיים.</p></article>
 
-      )}
-
-      {metaConnection && (
-        <>
-          <article className="card panel">
-            <header>
-              <div><p className="eyebrow">META ASSETS</p><h3>Facebook Pages + Instagram</h3></div>
-              <button className="secondary" onClick={loadMetaAssets} disabled={assetsLoading}>
-                {assetsLoading ? 'טוען...' : 'רענן'}
-              </button>
-            </header>
-            {assetsMessage && <p>{assetsMessage}</p>}
-          </article>
-
-          {metaAssets.length > 0 && (
-            <section className="three">
-              {metaAssets.map(page => (
-                <article className="card panel" key={page.id}>
-                  <p className="eyebrow">FACEBOOK PAGE</p>
-                  <h3>{page.name}</h3>
-                  <small>Page ID: {page.id}</small>
-
-                  {page.instagram ? (
-                    <div style={{marginTop:16}}>
-                      <p className="eyebrow">INSTAGRAM</p>
-                      {page.instagram.profile_picture_url && (
-                        <img
-                          src={page.instagram.profile_picture_url}
-                          alt="Instagram profile"
-                          style={{width:64,height:64,borderRadius:'50%',objectFit:'cover',marginBottom:10}}
-                        />
-                      )}
-                      <h3>@{page.instagram.username || page.instagram.name || 'Instagram'}</h3>
-                      <b className="green">● LIVE</b>
-                      {page.instagram.followers_count != null && <p>{page.instagram.followers_count.toLocaleString()} followers</p>}
-                      {page.instagram.media_count != null && <p>{page.instagram.media_count.toLocaleString()} posts</p>}
-                    </div>
-                  ) : (
-                    <p>לא נמצא חשבון Instagram מקצועי מקושר לדף הזה.</p>
-                  )}
-                </article>
-              ))}
-            </section>
-          )}
-        </>
       )}
 
     </section>
